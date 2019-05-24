@@ -43,7 +43,7 @@ int find_par_to_LCA(int v = 0, int dis = 0) {
 		p[v].push_back(par[par.size() - h - 1]), h <<= 1;
 	int weight = 1, to = -1, maxw = -1;
 	for (int i = 0; i < g[v].size(); i++) {
-		int we = find_par(g[v][i], dis);
+		int we = find_par_to_LCA(g[v][i], dis);
 		weight += we;
 		if (we > maxw)
 			maxw = we, to = g[v][i];
