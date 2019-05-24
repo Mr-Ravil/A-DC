@@ -36,7 +36,7 @@ struct splay {
 			splay * t = this->r;
 			this->r = this->p;
 			this->r->l = t;
-			if (t != nullptr)
+			if (t != nullptr) 
 				this->r->l->p = this->r;
 			this->p = this->p->p;
 			this->r->p = this;
