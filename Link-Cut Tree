@@ -1,0 +1,194 @@
+#include <vector>
+#include <queue>
+#include <deque>
+#include <cmath>
+#include <algorithm>
+#include <string>
+#include <climits>
+#include <iomanip>
+#include <set>
+#include <map>
+#include <math.h>
+#include <stack>
+#include <list>
+
+//#include <fstream>
+#include <iostream>
+
+using namespace std;
+
+typedef long long ll;
+typedef unsigned long long ull;
+
+//ifstream cin("input.txt"); ofstream cout("output.txt"); 
+
+struct splay {
+	int x;
+	splay *p = nullptr, *l = nullptr, *r = nullptr, *hlink = nullptr;
+	
+	splay(int val) {
+		this->x = val;
+	}
+
+	void zig() {
+		int xx = this->p->x;
+		if (this->p->l != nullptr && this->p->l->x == this->x) {
+			splay * t = this->r;
+			this->r = this->p;
+			this->r->l = t;
+			if (t != nullptr)
+				this->r->l->p = this->r;
+			this->p = this->p->p;
+			this->r->p = this;
+			this->hlink = this->r->hlink;
+			this->r->hlink = nullptr;
+		}
+		else {
+			splay * t = this->l;
+			this->l = this->p;
+			this->l->r = t;
+			if (t != nullptr)
+				this->l->r->p = this->l;
+			this->p = this->p->p;
+			this->l->p = this;
+			this->hlink = this->l->hlink;
+			this->l->hlink = nullptr;
+		}
+		if (this->p != nullptr) {
+			if (this->p->l != nullptr && this->p->l->x == xx)
+				this->p->l = this;
+			else
+				this->p->r = this;
+		}
+	}
+
+	void get_up() {
+		if (this->p == nullptr)
+			return;
+		while (this->p != nullptr && this->p->p != nullptr) {
+			bool t1 = this->p->l != nullptr && this->p->l->x == this->x;
+			bool t2 = this->p->p->l != nullptr && this->p->p->l->x == this->p->x;
+			if (t1 == t2) {
+				this->p->zig();
+				this->zig();
+			}
+			else {
+				this->zig();
+				this->zig();
+			}
+		}
+		if (this->p != nullptr)
+			this->zig();
+	}
+
+	splay * get_left() {
+		if (this->l == nullptr)
+			return this;
+		return this->l->get_left();
+	}
+
+	splay * get_right() {
+		if (this->r == nullptr)
+			return this;
+		return this->r->get_right();
+	}
+
+	void merge(splay * v) {
+		this->get_up();
+		splay * root = this->get_right();
+		root->get_up();
+		v->get_up();
+		v->hlink = nullptr;
+		root->r = v;
+		v->p = root;
+	}
+
+	void split() {
+		this->get_up();
+		if (this->r == nullptr)
+			return;
+		this->r->p = nullptr;
+		this->r->hlink = this;
+		this->r = nullptr;
+	}
+};
+
+vector <splay*> vert;
+vector <vector <int> > g;
+int n = 0;
+
+void append(int x) {
+	vert.push_back(new splay(++n));
+	vert[n]->hlink = vert[x];
+	g.push_back(vector<int>());
+	g[x].push_back(n);
+}
+
+void expose(int v) {
+	vert[v]->get_up();
+	vert[v]->split();
+	while (vert[v]->hlink != nullptr) {
+		vert[v]->hlink->split();
+		vert[v]->hlink->merge(vert[v]);
+		vert[v]->get_up();
+	}
+}
+
+void remove(int x) {
+	expose(x);
+	splay *h = vert[x]->l->get_right();
+	h->split();
+	for (int i = 0; i < g[x].size(); i++) {
+		int to = g[x][i];
+		if (vert[to] == nullptr) 
+			continue;
+		vert[to]->get_up();
+		vert[to]->hlink = h;
+		g[h->x].push_back(to);
+	}
+	g[x].clear();
+	vert[x] = nullptr;
+}
+
+int LCA(int v, int u) {
+	expose(v);
+	vert[u]->get_up();
+	int lca = u;
+	while (vert[u]->hlink != nullptr) {
+		lca = vert[u]->hlink->x;
+		vert[u]->hlink->split();
+		vert[u]->hlink->merge(vert[u]);
+		vert[u]->get_up();
+	}
+	return lca;
+}
+
+int main() {
+	ios_base::sync_with_stdio(false);
+	cin.tie(0);
+	cout.tie(0);	
+	vert.push_back(new splay(0));
+	g.push_back(vector<int>());
+	int q;
+	cin >> q;
+	while (q--) {
+		char c;
+		cin >> c;
+		if (c == '+') {
+			int x;
+			cin >> x;
+			append(--x);
+		}
+		else if (c == '-') {
+			int x;
+			cin >> x;
+			remove(--x);
+		}
+		else {
+			int v, u;
+			cin >> v >> u;
+			cout << LCA(--v, --u) + 1 << "\n";
+		}
+	}
+	return 0;
+}
