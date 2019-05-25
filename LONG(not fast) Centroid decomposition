@@ -1,0 +1,187 @@
+#include <vector>
+#include <queue>
+#include <deque>
+#include <cmath>
+#include <algorithm>
+#include <string>
+#include <climits>
+#include <iomanip>
+#include <set>
+#include <map>
+#include <math.h>
+#include <stack>
+#include <list>
+
+//#include <fstream>
+#include <iostream>
+
+using namespace std;
+
+typedef long long ll;
+typedef unsigned long long ull;
+
+//ifstream cin("input.txt"); ofstream cout("output.txt"); 
+
+struct wb {
+	int w = 0, b = 0;
+
+	void add(wb a) {
+		this->w += a.w;
+		this->b += a.b;
+	}
+
+	wb mul(wb a) {
+		return { this->w * a.w, this->b * a.b };
+	}
+
+	wb sub(wb a) {
+		return { this->w - a.w, this->b - a.b };
+	}
+};
+struct cd {
+	int c, d, e;
+};
+
+int n;
+vector <vector <int> > g;
+vector <vector <wb> > dist;
+vector <vector <vector <wb> > > eachDist;
+vector <int> w;
+vector <bool> del;
+vector <vector <cd> > cent_up;
+
+int find_weight(int v, int p = -1) {
+	int weight = 1;
+	for (int i = 0; i < g[v].size(); i++) {
+		if (g[v][i] == p || del[g[v][i]])
+			continue;
+		weight += find_weight(g[v][i], v);
+	}
+	w[v] = weight;
+	return weight;
+}
+
+void find_deep(int root, int root2, int v, int p, int deep = 1) {
+	if (dist[root].size() <= deep)
+		dist[root].push_back(wb());
+	if (eachDist[root][root2].size() <= deep)
+		eachDist[root][root2].push_back(wb());
+	dist[root][deep].b++;
+	eachDist[root][root2][deep].b++;
+	for (int i = 0; i < g[v].size(); i++) {
+		if (g[v][i] == p || del[g[v][i]])
+			continue;
+		cent_up[g[v][i]].push_back({ root, deep + 1, root2 });
+		find_deep(root, root2, g[v][i], v, deep + 1);
+	}
+}
+
+int find_centroid(int v, int s) {
+	bool t = false;
+	int p = -1;
+	 while (!t) {
+		 t = true;
+		 for (int i = 0; i < g[v].size(); i++) {
+			 int to = g[v][i];
+			 if (to == p || del[to])
+				 continue;
+			 if (w[to] > s) {
+				 t = false;
+				 p = v;
+				 v = to;
+				 break;
+			 }
+		 }
+	 }
+	 return v;
+}
+
+void find_all_centroids(int v = 0, int p = -1) {
+	find_weight(v);
+	v = find_centroid(v, w[v] / 2);
+	dist[v].push_back({ 0, 1 });
+	del[v] = true;
+	eachDist[v].resize(g[v].size());
+	for (int i = 0; i < g[v].size(); i++) {
+		int to = g[v][i];
+		if (del[to])
+			continue;
+		cent_up[to].push_back({ v, 1, i });
+		eachDist[v][i].push_back({ 0, 0 });
+		find_deep(v, i, to, v);
+		find_all_centroids(to, v);
+	}
+}
+
+void change(int v) {
+	wb ch = { 1, -1 };
+	if (dist[v][0].b == 0)
+		ch = { -1, 1 };
+	dist[v][0].add(ch);
+	for (int i = 0; i < cent_up[v].size(); i++) {
+		cd d = cent_up[v][i];
+		eachDist[d.c][d.e][d.d].add(ch);
+		dist[d.c][d.d].add(ch);
+	}
+}
+
+int calc(int v) {
+	wb cl = { 0, 1 };
+	wb res = { 0, 0 };
+	if (dist[v][0].b == 0)
+		cl = { 1, 0 };
+	for (int j = 1; j < dist[v].size(); j++)
+		res.add(dist[v][j].mul({ j, j }));
+	res.mul(cl);
+	for (int i = 0; i < cent_up[v].size(); i++) {
+		cd d = cent_up[v][i];
+		wb dis = cl.mul({ d.d, d.d });
+		int j = 0;
+		for (; j < eachDist[d.c][d.e].size(); j++) {
+			res.add(dist[d.c][j].sub(eachDist[d.c][d.e][j]).mul(dis));
+			dis.add(cl);
+		}
+		for (; j < dist[d.c].size(); j++) {
+			res.add(dist[d.c][j].mul(dis));
+			dis.add(cl);
+		}
+	}
+	return dist[v][0].b != 0 ? res.b : res.w;
+}
+
+int main() {
+	ios_base::sync_with_stdio(false);
+	cin.tie(0);
+	cout.tie(0);
+	int q;
+	cin >> n >> q;
+	g.resize(n);
+	w.resize(n);
+	cent_up.resize(n);
+	dist.resize(n);
+	eachDist.resize(n);
+	del.resize(n, false);
+	for (int i = 1; i < n; i++) {
+		int v, u;
+		cin >> v >> u;
+		--v, --u;
+		g[v].push_back(u);
+		g[u].push_back(v);
+	}
+	find_all_centroids();
+	while (q--) {
+		int c;
+		cin >> c;
+		if (c == 1) {
+			int v;
+			cin >> v;
+			change(--v);
+		}
+		else {
+			int v;
+			cin >> v;
+			cout << calc(--v) << "\n";
+		}
+	}
+	return 0;
+}
