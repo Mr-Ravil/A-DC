@@ -1,0 +1,216 @@
+#include <vector>
+#include <queue>
+#include <deque>
+#include <cmath>
+#include <algorithm>
+#include <string>
+#include <climits>
+#include <iomanip>
+#include <set>
+#include <map>
+#include <math.h>
+#include <stack>
+#include <list>
+
+//#include <fstream>
+#include <iostream>
+
+using namespace std;
+
+typedef long long ll;
+typedef unsigned long long ull;
+
+//ifstream cin("input.txt"); ofstream cout("output.txt"); 
+
+struct splay {
+	int x;
+	splay *p = nullptr, *l = nullptr, *r = nullptr;// , *hlink = nullptr;
+
+	splay(int val) {
+		this->x = val;
+	}
+
+	void zig() {
+		int xx = this->p->x;
+		if (this->p->l != nullptr && this->p->l->x == this->x) {
+			splay * t = this->r;
+			this->r = this->p;
+			this->r->l = t;
+			if (t != nullptr)
+				this->r->l->p = this->r;
+			this->p = this->p->p;
+			this->r->p = this;
+			//this->hlink = this->r->hlink;
+			//this->r->hlink = nullptr;
+		}
+		else {
+			splay * t = this->l;
+			this->l = this->p;
+			this->l->r = t;
+			if (t != nullptr)
+				this->l->r->p = this->l;
+			this->p = this->p->p;
+			this->l->p = this;
+			//this->hlink = this->l->hlink;
+			//this->l->hlink = nullptr;
+		}
+		if (this->p != nullptr) {
+			if (this->p->l != nullptr && this->p->l->x == xx)
+				this->p->l = this;
+			else
+				this->p->r = this;
+		}
+	}
+
+	void get_up() {
+		if (this->p == nullptr)
+			return;
+		while (this->p != nullptr && this->p->p != nullptr) {
+			bool t1 = this->p->l != nullptr && this->p->l->x == this->x;
+			bool t2 = this->p->p->l != nullptr && this->p->p->l->x == this->p->x;
+			if (t1 == t2) {
+				this->p->zig();
+				this->zig();
+			}
+			else {
+				this->zig();
+				this->zig();
+			}
+		}
+		if (this->p != nullptr)
+			this->zig();
+	}
+
+	splay * get_left() {
+		if (this->l == nullptr)
+			return this;
+		return this->l->get_left();
+	}
+
+	splay * get_right() {
+		if (this->r == nullptr)
+			return this;
+		return this->r->get_right();
+	}
+
+	void merge(splay * v) {
+		this->get_up();
+		splay * root = this->get_right();
+		root->get_up();
+		v->get_up();
+		//v->hlink = nullptr;
+		root->r = v;
+		v->p = root;
+	}
+
+	void split() {
+		this->get_up();
+		if (this->r == nullptr)
+			return;
+		this->r->p = nullptr;
+		//this->r->hlink = this;
+		this->r = nullptr;
+	}
+};
+
+int amt = 0;
+
+struct tos{
+	int to;
+	splay * s;
+
+	tos(int val) {
+		to = val;
+		s = new splay(amt++);
+	}
+};
+
+vector <map <int, splay*> > g;
+
+void link(int v, int u) {
+	splay * itv = g[v].insert({ u, new splay(amt++) }).first->second;
+	splay * itu = g[u].insert({ v, new splay(amt++) }).first->second;
+	splay * v0 = g[v].find(v)->second;
+	splay * u0 = g[u].find(u)->second;
+	v0->get_up();
+	u0->get_up();
+	splay * vr = v0->get_right();
+	splay * ur = u0->get_right();
+	v0->split();
+	u0->split();
+	v0->merge(itv);
+	if (ur->x != u0->x)
+		ur->merge(u0);
+	v0->merge(u0);
+	v0->merge(itu);
+	if (vr->x != v0->x)
+		v0->merge(vr);
+}
+
+bool connected(splay * v, splay * u) {
+	v->get_up();
+	u->get_up();
+	return v->p != nullptr;
+}
+
+void cut(int v, int u) {
+	splay * itv = g[v].find(u)->second;
+	splay * itu = g[u].find(v)->second;
+	itv->get_up();
+	splay * itvr = itv->get_right();
+	itv->split();
+	if (!connected(itv, itu)) {
+		if (itu->l != nullptr) {
+			splay * B = itu->l->get_right();
+			B->split();
+		}
+		splay * C = itu->get_right();
+		itu->split();
+		itu = nullptr;
+		if (itv->l != nullptr) {
+			splay * A = itv->l->get_right();
+			if (C != nullptr)
+				A->merge(C);
+		}
+		itv = nullptr;
+		g[v].erase(u);
+		g[u].erase(v);
+	}
+	else {
+		if (itvr->x != itv->x)
+			itv->merge(itvr);
+		cut(u, v);
+	}
+}
+
+
+int main() {
+	ios_base::sync_with_stdio(false);
+	cin.tie(0);
+	cout.tie(0);
+	int n, q;
+	cin >> n >> q;
+	g.resize(n);
+	for (int i = 0; i < n; i++)
+		g[i].insert({ i, new splay(amt++) });
+	while (q--) {
+		string c;
+		cin >> c;
+		if (c == "link") {
+			int v, u;
+			cin >> v >> u;
+			link(--v, --u);
+		}
+		else if (c == "cut") {
+			int v, u;
+			cin >> v >> u;
+			cut(--v, --u);
+		}
+		else {
+			int v, u;
+			cin >> v >> u;
+			cout << connected(g[--v].begin()->second, g[--u].begin()->second) << "\n";
+		}
+	}
+	return 0;
+}
