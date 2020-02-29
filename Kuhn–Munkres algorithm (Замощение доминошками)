@@ -1,0 +1,122 @@
+#include <vector>
+#include <queue>
+#include <deque>
+#include <cmath>
+#include <algorithm>
+#include <string>
+#include <climits>
+#include <iomanip>
+#include <set>
+#include <map>
+#include <math.h>
+#include <stack>
+#include <list>
+
+#include <fstream>
+//#include <iostream>
+
+using namespace std;
+
+typedef long long ll;
+typedef unsigned long long ull;
+
+//ifstream cin("input.txt"); ofstream cout("output.txt");
+ifstream cin("dominoes.in"); ofstream cout("dominoes.out");
+
+struct xyr;
+
+struct xy {
+	int x, y, g;
+	vector <xyr*> to = { nullptr, nullptr, nullptr, nullptr };
+	// 0 - left, 1 - top, 2 - right, 3 - bottom
+
+	xy(int x, int y, int g) {
+		this->x = x;
+		this->y = y;
+		this->g = g;
+	}
+};
+
+struct xyr {
+	int x, y;
+	xy* to = nullptr;
+
+	xyr(int x, int y) {
+		this->x = x;
+		this->y = y;
+	}
+};
+
+vector <xy*> g;
+vector <xyr*> gr;
+vector <bool> used;
+
+bool dfs(xy* v) {
+	if (used[v->g])
+		return false;
+	used[v->g] = true;
+	for (xyr* u : v->to) {
+		if (u == nullptr)
+			continue;
+		if (u->to == nullptr || dfs(u->to)) {
+			u->to = v;
+			return true;
+		}
+	}
+	return false;
+}
+
+int main() {
+	ios_base::sync_with_stdio(false);
+	cin.tie(0);
+	cout.tie(0);
+	int n, m, ca, cb, k = 0;
+	cin >> n >> m >> ca >> cb;
+	bool t = (m + 1) % 2;
+	for (int i = 0; i < n; i++) {
+		string s;
+		cin >> s;
+		for (int j = 0; j < m; j++) {
+			if (s[j] == '.') {
+				if ((i + j) % 2 == 0)
+					g.push_back(nullptr);
+				else
+					gr.push_back(nullptr);
+				continue;
+			}
+			k++;
+			int l = g.size() - 1;
+			int r = gr.size() - 1;
+			if ((i + j) % 2 == 0) {
+				g.push_back(new xy(i, j, ++l));
+				if (j != 0)
+					g[l]->to[0] = gr[r];
+				if (i != 0)
+					g[l]->to[1] = gr[r - m / 2 + (j + 1)*t % 2];
+			}
+			else {
+				gr.push_back(new xyr(i, j));
+				++r;
+				if (j != 0 && g[l] != nullptr)
+					g[l]->to[2] = gr[r];
+				if (i != 0 && g[l - m / 2 + (j + 1)*t % 2] != nullptr)
+					g[l - m / 2 + (j + 1)*t % 2]->to[3] = gr[r];
+			}
+		}
+	}
+	if (cb*2 <= ca) {
+		cout << k*cb;
+		return 0;
+	}
+	int ka = 0;
+	used.resize(g.size(), false);
+	for (int i = 0; i < g.size(); i++) {
+		if (g[i] != nullptr && dfs(g[i])) {
+			ka++;
+			used.assign(g.size(), false);
+		}
+	}	
+	int sum = (k - ka * 2)*cb + ka*ca;
+	cout << sum;
+	return 0;
+}
