@@ -1,0 +1,212 @@
+#include <vector>
+#include <queue>
+#include <deque>
+#include <cmath>
+#include <algorithm>
+#include <string>
+#include <climits>
+#include <iomanip>
+#include <set>
+#include <map>
+#include <math.h>
+#include <stack>
+#include <list>
+
+//#include <fstream>
+#include <iostream>
+
+using namespace std;
+
+typedef long long ll;
+typedef unsigned long long ull;
+
+//ifstream cin("input.txt"); ofstream cout("output.txt");
+
+struct xy {
+	int x, y;
+
+	bool operator <(const xy& a) const {
+		return x < a.x || (x == a.x && y < a.y);
+	}
+
+
+	bool operator==(const xy& a) const {
+		return x == a.x && y == a.y;
+	}
+	
+	bool operator!=(const xy& a) const {
+		return x != a.x || y != a.y;
+	}
+};
+
+struct edge {
+	int from, to;
+	int f, c;
+	edge * back = nullptr;
+
+	void increase_stream(int fi) {
+		this->f += fi;
+		this->back->f -= fi;
+	}
+
+	bool stream_is_max() {
+		return this->f == this->c;
+	}
+
+	int free_stream() {
+		return c - f;
+	}
+
+	edge(int from, int to, int f, int c) : from(from), to(to), f(f), c(c) {}
+
+	edge(int from, int to, int f, int c, edge * back) : from(from), to(to), f(f), c(c), back(back) {}
+};
+
+struct origin_edge {
+	bool orig;
+	xy v;
+	edge * e = nullptr;
+
+	origin_edge(bool orig, edge * e) : orig(orig), e(e) {}
+
+	origin_edge(bool orig, xy v, edge * e) : orig(orig), v(v), e(e) {}
+};
+
+int n;
+vector<edge*> edges;
+vector <vector<origin_edge>> g;
+
+int find_max_stream(int s, int t) {
+	int max_stream = 0;
+	while (true) {
+		vector <int> d(n, INT_MAX);
+		vector <pair<edge*, int> > path(n, { nullptr, INT_MAX });
+		priority_queue <pair<int, int> > q;
+		d[s] = 0;
+		q.push({ 0, s });
+		bool end = false;
+		while (!q.empty() && !end) {
+			int v = q.top().second;
+			int di = -q.top().first;
+			q.pop();
+			for (origin_edge oe : g[v]) {
+				int to = oe.e->to;
+				if (!oe.e->stream_is_max() && d[to] > di + 1) {
+					d[to] = di + 1;
+					path[to] = { oe.e, min(path[v].second, oe.e->free_stream()) };
+					if (to == t) {
+						end = true;
+						break;
+					}
+					q.push({ -di - 1, to });
+				}
+			}
+		}
+		if (path[t].first == nullptr)
+			break;
+		int i = t;
+		int stream = path[t].second;
+		if (stream == INT_MAX) {
+			return INT_MAX;
+		}
+		max_stream += stream;
+		while (path[i].first != nullptr) {
+			path[i].first->increase_stream(stream);
+			i = path[i].first->from;
+		}
+	}
+	return max_stream;
+}
+
+vector <bool> tagged;
+vector <string> field;
+
+void tag(int v) {
+	tagged[v] = true;
+	for (origin_edge oe : g[v]) {
+		if (!oe.e->stream_is_max() && !tagged[oe.e->to])
+			tag(oe.e->to);
+	}
+}
+
+void find_max_cut(int s, int t) {
+	int max_stream = find_max_stream(s, t);
+	if (max_stream == INT_MAX) {
+		cout << "-1";
+		return;
+	}
+	tagged.resize(n, false);
+	tag(s);
+	set <xy> cut;
+	for (int i = 0; i < n; i++) {
+		if (!tagged[i])
+			continue;
+		for (origin_edge oe : g[i]) {
+			if (!oe.orig || tagged[oe.e->to])
+				continue;
+			cut.insert(oe.v);
+		}
+	}
+	for (xy c : cut) 
+		field[c.x][c.y] = '+';
+	cout << cut.size() << "\n";
+	for (string s : field)
+		cout << s << "\n";
+}
+
+
+int main() {
+	ios_base::sync_with_stdio(false);
+	cin.tie(0);
+	cout.tie(0);
+	int m1, m2;
+	cin >> m1 >> m2;
+	n = m1 * m2;
+	g.resize(n*2);
+	field.resize(m1);
+	for (int i = 0; i < m1; ++i) 
+		cin >> field[i];
+	
+	int s, t;
+	for (int i = 0, v1 = 0, v2 = n; i < m1; ++i) {
+		for (int j = 0; j < m2; ++j, ++v1, ++v2) {
+
+			if (field[i][j] == '#')
+				continue;
+			if (field[i][j] == 'A')
+				s = v1;
+			if (field[i][j] == 'B')
+				t = v1;
+
+			int cv = INT_MAX;
+			if (field[i][j] == '.')
+				cv = 1;
+
+			//v1 -> v2
+			edges.push_back(new edge(v1, v2, 0, cv));
+			g[v1].push_back(origin_edge(true, {i, j}, edges.back()));
+			edges.push_back(new edge(v2, v1, 0, 0, edges.back()));
+			g[v2].push_back(origin_edge(false, edges.back()));
+			g[v1].back().e->back = edges.back();
+
+			vector <int> um = { v1 - m2, v1 + 1, v1 + m2, v1 - 1 };
+			vector <pair<int, int> > p = { {-1, 0}, {0, 1}, {1, 0}, {0, -1} };
+			for (int k = 0; k < 4; k++) {
+				int u1 = um[k], u2 = um[k] + n;
+				int ip = i + p[k].first, jp = j + p[k].second;
+				if (u1 < 0 || u1 >= n || (k == 1 && j == m2 - 1) || (k == 3 && j == 0) || field[ip][jp] == '#')
+					continue;
+				
+				//u2 -> v1
+				edges.push_back(new edge(u2, v1, 0, INT_MAX));
+				g[u2].push_back(origin_edge(false, edges.back()));
+				edges.push_back(new edge(v1, u2, 0, 0, edges.back()));
+				g[v1].push_back(origin_edge(false, edges.back()));
+				g[u2].back().e->back = edges.back();
+			}
+		}
+	}
+	n *= 2;
+	find_max_cut(s, t);
+	return 0;
+}
